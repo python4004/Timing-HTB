@@ -5,7 +5,7 @@
 
 1-LFI
 
-2-source code rewiew (php)
+2-source code review (php)
 
 2-Unrestricted File Upload
 
@@ -40,13 +40,14 @@ Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 
 
 ```
+
  let's explore port `80` ,it opened just login page. 
 
 ![1](https://user-images.githubusercontent.com/36403473/167138043-200b10a8-6468-408b-a3ee-f84dd168432b.png)
 
 ## user flag
 
-so lets first try `sql injection` but not work so lets explore directories i prefere `dirsearch` tool
+i tried `sql injection` but didnt work, so lets explore directories i prefere `dirsearch` tool
 ``` try 
 [13:38:41] 200 -    0B  - /image.php
 [13:38:48] 200 -    5KB - /login.php
@@ -58,7 +59,7 @@ i used `WFUZZ` to find any paramters and i found `img` parameter.
 `wfuzz -w anyworldist -hh 0 http://timing.htb/image.php?FUZZ=../etc/passwd`
 
 #### note :
-to find `img` parameter i want to make application tell that me  right, you trying to hack me.
+To find `img` parameter i want to make application tell that me  right, you trying to hack me.
 
 another tools :
 ```
@@ -67,14 +68,15 @@ param-miner
 Arjun
 ```
 ### LFI:
+
 ![2](https://user-images.githubusercontent.com/36403473/170888075-b55b6abb-5ac3-4d23-802a-5c11560b312d.png)
 
 very good it's seem way to `attack` lets try some injections (Sql injection -LFI-command injection)
 
-using LFI / RFI using PHP wrappers
+using `PHP wrappers`
 
 
-finally i found its LFI, i used `php://filter/convert.base64-encode` LFI technique to get `etc/passwd`
+finally i found its `LFI`, i used `php://filter/convert.base64-encode` LFI technique to get `etc/passwd`
 
 you can find ways to detect `LFI` here
 [here](https://book.hacktricks.xyz/pentesting-web/file-inclusion)
@@ -117,7 +119,7 @@ aaron:x:1000:1000:aaron:/home/aaron:/bin/bash
 #### notice
 `aaron:x:1000:1000:aaron:/home/aaron:/bin/bash`
 
-let's reverse`login.php`
+let's read`login.php` after `base64` decode
 
 ```
 <?php
@@ -209,7 +211,8 @@ if (isset($errorMessage)) {
 include "footer.php";
 
 ```
-i found `db_conn.php` and many pages i get all of them and lets start new chapter.
+
+i found `db_conn.php` and many pages i get all of them let's start new chapter.
 
 ![4](https://user-images.githubusercontent.com/36403473/170888997-b67eb05e-d040-4b89-b562-56e37e122212.png)
 
@@ -242,7 +245,7 @@ if (isset($_GET['login'])) {
 }
 
 ```
-from the first look this code seems to have `sql injection` but after search with my friend `Yasser Elsnbary` we found that its not sql injection
+From the first look this code seems to have `sql injection` but after search with my friend `Yasser Elsnbary` we found that its not sql injection
 
 you can check it from
 [here](https://stackoverflow.com/questions/14589407/what-does-a-colon-before-a-literal-in-an-sql-statement-mean)
@@ -253,6 +256,7 @@ Prepared statements are very useful against SQL injections, because parameter va
 
 ```
 
+
 its seem that we have user that have high privilege over other users it may admin user but first we need to login.
 
 i only have a user `aaron` but i dont have his passowrd and no way to `sql_injection`
@@ -260,19 +264,21 @@ i only have a user `aaron` but i dont have his passowrd and no way to `sql_injec
 i found this passowrd `4_V3Ry_l0000n9_p422w0rd` in `db_conn.php` but doesn't work.
 
 so the last solution to find `aaron` password is to bruteforce we may found it.
-using `rockyou` wordlist it was easy to find 
-so our username& password  [`aaron`-`aaron`]
+
+using `rockyou` wordlist it was easy to find ,so our username& password  [`aaron`-`aaron`]
+
 
 ![5](https://user-images.githubusercontent.com/36403473/171068633-de00d6bd-5466-485d-b70b-5f9ec013b3f9.png)
 
-After login i realized that i am in right corner i am user 2 so i need to increase my privilege.
+
+After logging, i realized that i am in right corner i am `user 2` so i need to increase my privilege.
 
 lets open `burpsuite`
 
 in `Edit profile` page 
 
 ![6](https://user-images.githubusercontent.com/36403473/171068968-87e29291-36cd-4f65-a3b6-774f828eb612.png)
-so lets try to manipulate this 
+
 
 From `admin_auth_check.php` 
 ```
@@ -284,14 +290,15 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] != 1) {
     die();
 }
 ```
-by checking for `role=1`,so let's add role parameter and see what will happen
+lets try to manipulate this  by setting `role=1`,so let's add role parameter and see what will happen.
 
 ![7](https://user-images.githubusercontent.com/36403473/171070042-beb3d3ca-b809-4668-ae81-5c843ee5f252.png)
 
-role parameter changed in `json response` & admin panel tab appeared
+`role` parameter changed in `json response` & `admin panel` tab appeared.
+
 ![8](https://user-images.githubusercontent.com/36403473/171071990-835005a6-117c-4272-aeeb-83af822d8397.png)
 
-lets check `avatar_uploader.php` code
+lets check `avatar_uploader.php` :
 
 ```
 <?php
@@ -350,7 +357,9 @@ include_once "footer.php";
 ?>
 
 ```
-avatar_uploader.js:
+
+`avatar_uploader.js`:
+
 ```
 $(document).ready(function () {
     document.getElementById("main").style.backgroundImage = "url('/image.php?img=images/background.jpg'"
@@ -391,7 +400,8 @@ function doUpload() {
 }
 
 ```
-upload.php
+
+`upload.php`:
 ```
 <?php
 #include("admin_auth_check.php");
@@ -437,13 +447,14 @@ if (empty($error)) {
 ?>
 
 ```
-#### analyzing(`upload.php`):
+#### analyzing(upload.php):
 
 1- we can upload `jpg` file 
 
-2-upload_dir = `"images/uploads/"`
+2- upload_dir = `"images/uploads/"`
 
-3-this code change the name of photo from this lines 
+3- this code change the name of photo from this lines 
+
 ```
 $file_hash = uniqid()
 md5('$file_hash' . time()) . '_' . basename($_FILES["fileToUpload"]["name"])
@@ -453,18 +464,18 @@ so we need to create simple script that change name like this sequence :
 
 `md5(uniqid()+time())+filename`
 
-note that
+#### note that
 
-uniqid()-> generates a unique ID based on the microtime (the current time in microseconds).
+`uniqid()`-> generates a unique ID based on the microtime (the current time in microseconds).
 
 The generated ID from this function does not guarantee uniqueness of the return value
 
-time() -> function returns the current time in the number of seconds since the Unix Epoch (January 1 1970 00:00:00 GMT).
+`time()`-> function returns the current time in the number of seconds since the Unix Epoch (January 1 1970 00:00:00 GMT).
 
 so the problem that the new name of photo can be detected.
 
 
-i genetate php code that help me to detect:
+i genetate php code that help me to detect new photo name :
 
 ```
 <?PHP
@@ -528,9 +539,10 @@ function time_Test()
 ```
 so lets upload our shell file and run our script.
 
-to create php shell inside `jpg` file 
 
-Unrestricted File Upload:
+
+### Unrestricted File Upload:
+
 
 
  
